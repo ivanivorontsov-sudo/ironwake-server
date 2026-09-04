@@ -8,7 +8,11 @@ Options -Indexes
   Require all denied
 </Files>
 
-# После установки Node.js на Beget (SSH + ~/.local) раскомментируйте:
-# PassengerEnabled On
-# PassengerAppType node
-# PassengerStartupFile src/index.js
+<Files "config.local.json">
+  Require all denied
+</Files>
+
+# Beget Node (Passenger). Keep enabled so deploys don't kill /health.
+PassengerEnabled On
+PassengerAppType node
+PassengerStartupFile passenger.cjs

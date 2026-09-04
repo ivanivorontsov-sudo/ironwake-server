@@ -1,6 +1,6 @@
 /**
  * Authoritative last-stand room. No respawn.
- * Module ids match the web client: hull/turret faces, tracks, engine, ammo, crew.
+ * Works over WebSocket and HTTP polling (Beget nginx strips WS upgrade).
  */
 const STEP = 50;
 
@@ -11,6 +11,8 @@ export class Room {
     this.players = new Map();
     this.tick = 0;
     this.ended = false;
+    this.snapshot = [];
+    this.events = [];
     this.timer = setInterval(() => this.step(), STEP);
   }
 
@@ -21,7 +23,7 @@ export class Room {
       callsign: profile.callsign,
       vehicleId,
       team,
-      ws,
+      ws: ws || null,
       x: team === "blue" ? 12 : -12,
       y: 0,
       z: team === "blue" ? 180 : -180,
@@ -32,7 +34,9 @@ export class Room {
       alive: true,
       modules: { hull_front: 1, engine: 1, ammo: 1, track_l: 1, track_r: 1 },
     });
+    this.pushEvent("join", { id, callsign: profile.callsign, team, vehicleId, defId: vehicleId });
     this.broadcast("join", { id, callsign: profile.callsign, team, vehicleId, defId: vehicleId });
+    return this.players.get(id);
   }
 
   input(id, msg) {
@@ -59,11 +63,14 @@ export class Room {
     if (mod === "ammo" && Math.random() < 0.35) {
       to.alive = false;
       to.hp = 0;
+      this.pushEvent("cookoff", { id: to.id, by: from.id });
       this.broadcast("cookoff", { id: to.id, by: from.id });
     } else if (to.hp <= 0) {
       to.alive = false;
+      this.pushEvent("kill", { id: to.id, by: from.id, module: mod });
       this.broadcast("kill", { id: to.id, by: from.id, module: mod });
     } else {
+      this.pushEvent("hit", { id: to.id, module: mod, hp: to.hp });
       this.broadcast("hit", { id: to.id, module: mod, hp: to.hp });
     }
     this.checkEnd();
@@ -72,8 +79,9 @@ export class Room {
   checkEnd() {
     const live = { blue: 0, red: 0 };
     for (const p of this.players.values()) if (p.alive) live[p.team]++;
-    if (live.blue === 0 || live.red === 0) {
+    if (this.players.size >= 1 && (live.blue === 0 || live.red === 0) && (live.blue + live.red) < this.players.size) {
       this.ended = true;
+      this.pushEvent("end", { winner: live.blue ? "blue" : "red" });
       this.broadcast("end", { winner: live.blue ? "blue" : "red" });
       clearInterval(this.timer);
     }
@@ -81,6 +89,7 @@ export class Room {
 
   leave(id) {
     this.players.delete(id);
+    this.pushEvent("leave", { id });
     this.broadcast("leave", { id });
   }
 
@@ -105,13 +114,19 @@ export class Room {
         callsign: p.callsign,
       });
     }
+    this.snapshot = snapshot;
     this.broadcast("state", { t: Date.now(), units: snapshot });
+  }
+
+  pushEvent(type, payload) {
+    this.events.push({ type, payload, t: Date.now() });
+    if (this.events.length > 30) this.events.splice(0, this.events.length - 30);
   }
 
   broadcast(type, payload) {
     const raw = JSON.stringify({ type, payload });
     for (const p of this.players.values()) {
-      if (p.ws.readyState === 1) p.ws.send(raw);
+      if (p.ws && p.ws.readyState === 1) p.ws.send(raw);
     }
   }
 }

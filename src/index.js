@@ -1,4 +1,7 @@
 import http from "node:http";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { OAuth2Client } from "google-auth-library";
 import { WebSocketServer } from "ws";
 import { cfg, mysqlConfigured } from "./config.js";
@@ -7,6 +10,7 @@ import { getRoom } from "./game.js";
 
 const PORT = cfg.port;
 const google = new OAuth2Client(cfg.googleClientId || undefined);
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -19,6 +23,18 @@ const server = http.createServer(async (req, res) => {
   }
   const url = new URL(req.url ?? "/", `http://127.0.0.1:${PORT}`);
   try {
+    if ((url.pathname === "/play" || url.pathname === "/hangar.html") && req.method === "GET") {
+      const htmlFile = join(root, "public", "hangar.html");
+      try {
+        const body = readFileSync(htmlFile, "utf8");
+        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+        res.end(body);
+        return;
+      } catch {
+        html(res, "<p>hangar missing</p>");
+        return;
+      }
+    }
     if (url.pathname === "/" && req.method === "GET") {
       html(res, statusPage());
       return;
@@ -32,7 +48,33 @@ const server = http.createServer(async (req, res) => {
         json(res, { ok: false, db, error: String(err.message ?? err), url: cfg.publicUrl }, 503);
         return;
       }
-      json(res, { ok: true, db, url: cfg.publicUrl });
+      json(res, { ok: true, db, url: cfg.publicUrl, ws: "blocked-on-beget", room: "/room/state" });
+      return;
+    }
+    if (url.pathname === "/room/join" && req.method === "POST") {
+      const body = await readJson(req);
+      const room = getRoom(String(body.room || "public").slice(0, 16), body.mode || "laststand");
+      const team = room.players.size % 2 === 0 ? "blue" : "red";
+      const profile = { id: body.userId || `g${Date.now()}`, callsign: body.callsign || "OPERATOR" };
+      const p = room.join(null, profile, body.vehicleId || body.defId || "k72-ural", team);
+      json(res, { ok: true, id: p.id, team: p.team, room: room.id });
+      return;
+    }
+    if (url.pathname === "/room/input" && req.method === "POST") {
+      const body = await readJson(req);
+      const room = getRoom(String(body.room || "public").slice(0, 16), body.mode || "laststand");
+      if (body.userId) room.input(body.userId, body);
+      json(res, { ok: true });
+      return;
+    }
+    if (url.pathname === "/room/state" && req.method === "GET") {
+      const room = getRoom(String(url.searchParams.get("room") || "public").slice(0, 16), "laststand");
+      json(res, {
+        type: "state",
+        payload: { t: Date.now(), units: room.snapshot },
+        events: room.events.slice(-12),
+        ended: room.ended,
+      });
       return;
     }
     if (url.pathname === "/auth/google" && req.method === "POST") {
@@ -99,42 +141,17 @@ function statusPage() {
     ? `${cfg.mysql.user}@${cfg.mysql.host}/${cfg.mysql.database}`
     : "не задан пароль — заполните config.local.json";
   return `<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>IRONWAKE server</title>
-  <style>
-    body{margin:0;background:#0c0d0c;color:#e8e4d8;font-family:IBM Plex Sans,Segoe UI,sans-serif}
-    main{max-width:640px;margin:12vh auto;padding:24px}
-    h1{font-family:Barlow Condensed,Segoe UI,sans-serif;font-size:48px;margin:0}
-    .muted{color:#9a9a8c}
-    .ok{color:#7aa06c}.bad{color:#c07060}
-    code{background:#1e201c;padding:2px 6px;border-radius:4px}
-  </style>
-</head>
-<body>
-  <main>
-    <p class="muted" style="letter-spacing:.28em;text-transform:uppercase;font-size:12px">Game server</p>
-    <h1>IRONWAKE</h1>
-    <p>Node.js запущен. API: <code>/health</code> · сокет: <code>/ws</code></p>
-    <p>Публичный адрес: <code>${cfg.publicUrl}</code></p>
-    <p>MySQL: <code>${dbHint}</code></p>
-    <p id="st" class="muted">проверка базы…</p>
-  </main>
-  <script>
-    fetch("/health").then(r=>r.json()).then(j=>{
-      const el=document.getElementById("st");
-      el.className=j.ok?"ok":"bad";
-      el.textContent=j.ok?"База подключена.":"База недоступна: "+(j.error||"нет ответа");
-    }).catch(()=>{
-      const el=document.getElementById("st");
-      el.className="bad";
-      el.textContent="База недоступна.";
-    });
-  </script>
-</body>
-</html>`;
+<html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>IRONWAKE server</title>
+<style>body{margin:0;background:#0c0d0c;color:#e8e4d8;font-family:sans-serif}main{max-width:640px;margin:12vh auto;padding:24px}.muted{color:#9a9a8c}.ok{color:#7aa06c}.bad{color:#c07060}code{background:#1e201c;padding:2px 6px}a{color:#c4b48a}</style></head>
+<body><main>
+<p class="muted">GAME SERVER</p><h1>IRONWAKE</h1>
+<p>API: <code>/health</code> · бой: <a href="/play">/play</a> · HTTP-room: <code>/room/state</code></p>
+<p>WebSocket на Beget закрыт nginx. Клиент идёт через HTTP.</p>
+<p>MySQL: <code>${dbHint}</code></p>
+<p id="st" class="muted">проверка базы…</p>
+<script>fetch("/health").then(r=>r.json()).then(j=>{const el=document.getElementById("st");el.className=j.ok?"ok":"bad";el.textContent=j.ok?"База подключена.":"База недоступна: "+(j.error||"");}).catch(()=>{});</script>
+</main></body></html>`;
 }
 
 function readJson(req) {
@@ -152,7 +169,9 @@ function readJson(req) {
   });
 }
 
-const dbOk = await waitForDb();
+waitForDb().then((dbOk) => {
+  console.log(`IRONWAKE db=${dbOk ? "up" : "down"}`);
+});
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`IRONWAKE server ${cfg.publicUrl} :${PORT} db=${dbOk ? "up" : "down"}`);
+  console.log(`IRONWAKE server ${cfg.publicUrl} :${PORT}`);
 });

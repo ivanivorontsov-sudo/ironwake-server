@@ -5,6 +5,8 @@ import { Room } from "../src/game.js";
 import { getVehicle, listVehicles, MODULE_KEYS } from "../src/vehicles.js";
 import { facingArmorMm, penetrates, spawnProjectile, stepProjectile } from "../src/combat.js";
 import { computeRewards, evaluateAchievements } from "../src/achievements.js";
+import { ensureBots, botThink, botsEnabled } from "../src/bots.js";
+import { cfg } from "../src/config.js";
 
 let failed = 0;
 function assert(cond, msg) {
@@ -70,7 +72,10 @@ assert(hit === "uB", `projectile should hit B (got ${hit})`);
 // Server hit applies
 const events = [];
 room.applyServerHit(a, b, { ...proj, pen: 400, damage: 500, x: b.x, z: b.z }, events);
-assert(b.hp < hpBefore || events.some((e) => e.type === "hit" || e.type === "kill" || e.type === "cookoff"), "server hit produced effect");
+assert(
+  b.hp < hpBefore || events.some((e) => e.type === "hit" || e.type === "kill" || e.type === "cookoff"),
+  "server hit produced effect",
+);
 
 // Rewards
 const rew = computeRewards({
@@ -86,7 +91,18 @@ const rew = computeRewards({
 });
 assert(rew.steel > 1000 && rew.xp > 100, "rewards positive");
 const ach = evaluateAchievements(
-  { ...rew, result: "victory", kills: 2, damage: 1500, deaths: 0, reason: "laststand", vehicleId: "k72-ural", shots: 10, hits: 6, modulesBroken: 0 },
+  {
+    ...rew,
+    result: "victory",
+    kills: 2,
+    damage: 1500,
+    deaths: 0,
+    reason: "laststand",
+    vehicleId: "k72-ural",
+    shots: 10,
+    hits: 6,
+    modulesBroken: 0,
+  },
   { battles: 0, kills: 0 },
 );
 assert(ach.includes("first_blood") && ach.includes("last_stand"), `achievements ${ach}`);
@@ -100,6 +116,37 @@ room.input("uB", { fire: true, throttle: 1 });
 assert(b.input.fire === false || b.spectator, "spectator inputs ignored for combat");
 
 clearInterval(room.timer);
+
+// Bots: fill + think + snapshot flag
+assert(typeof cfg.bots.enabled === "boolean", "bots config present");
+assert(botsEnabled() === cfg.bots.enabled, "botsEnabled matches cfg");
+
+const roomB = new Room("test-bots", "laststand");
+const human = roomB.join(null, { id: "human1", callsign: "HUMAN" }, "k72-ural", "blue");
+assert(human, "human joined bot room");
+const added = ensureBots(roomB);
+assert(added > 0, `bots filled (added=${added}, size=${roomB.players.size}, target=${cfg.bots.target})`);
+const bots = [...roomB.players.values()].filter((p) => p.bot);
+assert(bots.length >= 1, `at least one bot (got ${bots.length})`);
+assert(bots.every((bp) => String(bp.callsign).startsWith("BOT-")), "bot callsigns BOT-*");
+
+let enemyBot = bots.find((bp) => bp.team !== human.team) || bots[0];
+if (enemyBot.team === human.team) {
+  enemyBot.team = human.team === "blue" ? "red" : "blue";
+}
+enemyBot.x = human.x + 20;
+enemyBot.z = human.z;
+botThink(enemyBot, roomB);
+assert(typeof enemyBot.input.aimYaw === "number", "bot sets aimYaw");
+assert(typeof enemyBot.input.throttle === "number", "bot sets throttle");
+
+roomB.step();
+const snap = roomB.buildSnapshot();
+assert(snap.some((u) => u.bot === true), "snapshot has bot:true");
+const reports = roomB.matchReports();
+assert(reports.every((r) => !String(r.userId).startsWith("bot-")), "bots excluded from match reports");
+assert(reports.some((r) => r.userId === "human1"), "human still in match reports");
+clearInterval(roomB.timer);
 
 if (failed) {
   console.error(`\n${failed} failure(s)`);

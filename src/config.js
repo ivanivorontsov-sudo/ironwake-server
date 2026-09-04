@@ -23,6 +23,12 @@ function val(key, fallback) {
   return v;
 }
 
+function botsFlag(raw) {
+  const s = String(raw).trim().toLowerCase();
+  if (s === "0" || s === "false" || s === "off" || s === "no") return false;
+  return true;
+}
+
 export const cfg = {
   port: Number(val("PORT", 8787)),
   publicUrl: String(val("PUBLIC_URL", "http://biker9td.beget.tech")).replace(/\/$/, ""),
@@ -34,6 +40,11 @@ export const cfg = {
     database: val("MYSQL_DATABASE", "biker9td_ironwake"),
   },
   googleClientId: val("GOOGLE_CLIENT_ID", ""),
+  bots: {
+    enabled: botsFlag(val("BOTS", "1")),
+    /** Fill last-stand rooms up to this many total players when a human is present. */
+    target: Math.max(2, Math.min(32, Number(val("BOTS_TARGET", 6)) || 6)),
+  },
 };
 
 export function mysqlConfigured() {

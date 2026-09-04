@@ -76,6 +76,8 @@ const server = http.createServer(async (req, res) => {
         room: "/room/state",
         tickHz: 20,
         maxPlayers: 32,
+        bots: cfg.bots.enabled,
+        botsTarget: cfg.bots.target,
       });
       return;
     }
@@ -253,7 +255,7 @@ function statusPage() {
 <body><main>
 <p class="muted">GAME SERVER</p><h1>IRONWAKE</h1>
 <p>API: <code>/health</code> · бой: <a href="/play">/play</a> · HTTP-room: <code>/room/state</code> · каталог: <code>/catalog/vehicles</code></p>
-<p>Симуляция 20 Гц · комнаты до 32 · без респауна · модули + баллистика</p>
+<p>Симуляция 20 Гц · комнаты до 32 · без респауна · модули + баллистика · боты (BOTS=0 выкл.)</p>
 <p>WebSocket на Beget закрыт nginx. Клиент идёт через HTTP poll.</p>
 <p>MySQL: <code>${dbHint}</code></p>
 <p id="st" class="muted">проверка базы…</p>

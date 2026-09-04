@@ -100,3 +100,14 @@ WebSocket: `ws://localhost:8787/ws`
 ```bash
 node scripts/combat-smoke.mjs
 ```
+
+## Боты и веб-ангар (feat/bots-and-hangar)
+
+- AI-боты (`BOT-*`, флаг `bot:true` в snapshot) дополняют last-stand комнаты до `BOTS_TARGET` (по умолчанию 6), если есть хотя бы один человек.
+- Отключить: `BOTS=0` в env или `config.local.json`. Подробнее: [BOTS.md](BOTS.md).
+- Веб-клиент: [`/play`](http://biker9td.beget.tech/play) / [`hangar.html`](http://biker9td.beget.tech/hangar.html) — каталог, `POST /room/join`, poll `/room/state`, ввод `throttle/steer/fire/aim*` (canvas top-down).
+
+```bash
+node scripts/combat-smoke.mjs
+```
+

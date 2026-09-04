@@ -84,3 +84,19 @@ docker compose up --build
 
 API: `http://localhost:8787/health`  
 WebSocket: `ws://localhost:8787/ws`
+
+
+## Боевая симуляция (feat/realistic-combat)
+
+- Тик **20 Гц**, авторитетная комната до **32** игроков, режим **last-stand** без респауна (после смерти — spectator).
+- Клиент шлёт только ввод (`throttle` / `steer` / `aim*` / `fire`); HP, alive и урон с клиента игнорируются.
+- Баллистика снарядов + гравитация; попадания только от серверных projectiles.
+- Модули: корпус F/S/R, башня, орудие, двигатель, БК, гусеницы, топливо, оптика; пожар DoT и cook-off.
+- Каталог: `GET /catalog/vehicles` · протокол: [PROTOCOL.md](PROTOCOL.md) · дизайн: [DESIGN.md](DESIGN.md).
+- Миграция: [`sql/002_combat_rewards.sql`](sql/002_combat_rewards.sql) (после `001_schema.sql`).
+
+Проверка без MySQL:
+
+```bash
+node scripts/combat-smoke.mjs
+```

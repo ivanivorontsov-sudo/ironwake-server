@@ -1,10 +1,11 @@
 /**
- * Beget Passenger entry (CommonJS) that boots the ESM app.
- * Prefer listen('passenger') when PhusionPassenger is present.
+ * Beget Passenger entry (CommonJS) → ESM app.
+ * Always mark Passenger mode: shared hosting forbids binding :8787.
  */
+process.env.IRONWAKE_PASSENGER = "1";
+
 if (typeof PhusionPassenger !== "undefined") {
   PhusionPassenger.configure({ autoInstall: false });
-  process.env.IRONWAKE_PASSENGER = "1";
 }
 
 import("./src/index.js").catch((err) => {

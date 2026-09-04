@@ -1,0 +1,9 @@
+{
+  "PUBLIC_URL": "http://biker9td.beget.tech",
+  "MYSQL_HOST": "localhost",
+  "MYSQL_PORT": 3306,
+  "MYSQL_USER": "biker9td_ironwake",
+  "MYSQL_PASSWORD": "ПАРОЛЬ_ИЗ_ПАНЕЛИ_BEGET",
+  "MYSQL_DATABASE": "biker9td_ironwake",
+  "GOOGLE_CLIENT_ID": ""
+}

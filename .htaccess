@@ -1,0 +1,14 @@
+Options -Indexes
+
+<FilesMatch "\.(js|json|yml|yaml|sql|md|env|example|log|gitignore)$">
+  Require all denied
+</FilesMatch>
+
+<Files "Dockerfile">
+  Require all denied
+</Files>
+
+# После установки Node.js на Beget (SSH + ~/.local) раскомментируйте:
+# PassengerEnabled On
+# PassengerAppType node
+# PassengerStartupFile src/index.js

@@ -1,3 +1,7 @@
+/**
+ * Authoritative last-stand room. No respawn.
+ * Module ids match the web client: hull/turret faces, tracks, engine, ammo, crew.
+ */
 const STEP = 50;
 
 export class Room {
@@ -19,13 +23,16 @@ export class Room {
       team,
       ws,
       x: team === "blue" ? 12 : -12,
+      y: 0,
       z: team === "blue" ? 180 : -180,
       yaw: team === "blue" ? Math.PI : 0,
       turretYaw: 0,
+      gunPitch: 0,
       hp: 1800,
       alive: true,
+      modules: { hull_front: 1, engine: 1, ammo: 1, track_l: 1, track_r: 1 },
     });
-    this.broadcast("join", { id, callsign: profile.callsign, team, vehicleId });
+    this.broadcast("join", { id, callsign: profile.callsign, team, vehicleId, defId: vehicleId });
   }
 
   input(id, msg) {
@@ -33,7 +40,12 @@ export class Room {
     if (!p || !p.alive) return;
     if (typeof msg.yaw === "number") p.yaw = msg.yaw;
     if (typeof msg.x === "number") p.x = msg.x;
+    if (typeof msg.y === "number") p.y = msg.y;
     if (typeof msg.z === "number") p.z = msg.z;
+    if (typeof msg.turretYaw === "number") p.turretYaw = msg.turretYaw;
+    if (typeof msg.gunPitch === "number") p.gunPitch = msg.gunPitch;
+    if (typeof msg.hp === "number") p.hp = msg.hp;
+    if (typeof msg.alive === "boolean") p.alive = msg.alive;
     if (msg.hit && this.players.has(msg.hit.target)) {
       this.applyHit(p, this.players.get(msg.hit.target), msg.hit);
     }
@@ -79,14 +91,18 @@ export class Room {
     for (const p of this.players.values()) {
       snapshot.push({
         id: p.id,
+        defId: p.vehicleId,
+        vehicleId: p.vehicleId,
+        team: p.team,
         x: p.x,
+        y: p.y,
         z: p.z,
         yaw: p.yaw,
         turretYaw: p.turretYaw,
+        gunPitch: p.gunPitch,
         hp: p.hp,
         alive: p.alive,
-        team: p.team,
-        vehicleId: p.vehicleId,
+        callsign: p.callsign,
       });
     }
     this.broadcast("state", { t: Date.now(), units: snapshot });

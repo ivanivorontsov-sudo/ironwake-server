@@ -1,26 +1,32 @@
 import mysql from "mysql2/promise";
+import { cfg, mysqlConfigured } from "./config.js";
 
 export const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST ?? "127.0.0.1",
-  port: Number(process.env.MYSQL_PORT ?? 3306),
-  user: process.env.MYSQL_USER ?? "ironwake",
-  password: process.env.MYSQL_PASSWORD ?? "ironwake",
-  database: process.env.MYSQL_DATABASE ?? "ironwake",
+  host: cfg.mysql.host,
+  port: cfg.mysql.port,
+  user: cfg.mysql.user,
+  password: cfg.mysql.password,
+  database: cfg.mysql.database,
   waitForConnections: true,
   connectionLimit: 10,
   namedPlaceholders: true,
 });
 
 export async function waitForDb() {
-  for (let i = 0; i < 30; i++) {
+  if (!mysqlConfigured()) {
+    console.warn("MySQL password empty — fill config.local.json (see config.local.json.example)");
+    return false;
+  }
+  for (let i = 0; i < 15; i++) {
     try {
       await pool.query("SELECT 1");
-      return;
-    } catch {
+      return true;
+    } catch (err) {
+      console.warn(`MySQL retry ${i + 1}/15: ${err.message}`);
       await new Promise((r) => setTimeout(r, 1000));
     }
   }
-  throw new Error("MySQL not reachable");
+  return false;
 }
 
 function nid() {

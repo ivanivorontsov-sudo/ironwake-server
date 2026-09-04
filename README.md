@@ -1,17 +1,81 @@
 # IRONWAKE Server
 
-Authoritative combined-arms combat server for **IRONWAKE**.
+Авторитетный сервер боя для **IRONWAKE**.
 
-MySQL stores accounts, garage, currencies (Steel / Intel / Commendations), achievements and match history. WebSocket rooms run the simulation: **no respawn**, module hits (tracks, engine, ammo cook-off, crew), tanks / IFVs / helicopters / jets.
+MySQL хранит аккаунты, гараж, валюты (Сталь / Разведка / Награды), достижения и журнал боёв. Комнаты WebSocket считают симуляцию: **без возрождения**, попадания по модулям.
 
-## Stack
+Публичный адрес: **http://biker9td.beget.tech**
+
+## Стек
 
 - Node.js 22
-- MySQL 8
-- `ws` game rooms at 20 Hz
-- Google Sign-In (ID token) for accounts
+- MySQL 8 (на Beget — MySQL панели)
+- `ws` комнаты 20 Гц
+- Google Sign-In (ID token)
 
-## Run
+## База на Beget — куда прописывать
+
+База **не заливается в public_html**. Она живёт в панели Beget.
+
+1. Панель → **MySQL** → имя `ironwake` → получится `biker9td_ironwake` (логин + `_` + имя).
+2. Пароль сохраните. Хост для кода на том же аккаунте: **`localhost`**.
+3. Кнопка **phpMyAdmin** → **Импорт** → файл [`sql/001_schema.sql`](sql/001_schema.sql).
+4. В корне проекта (рядом с `package.json`, это и есть public_html) скопируйте:
+   - `config.local.json.example` → **`config.local.json`**
+5. Впишите логин/пароль/имя базы из панели:
+
+```json
+{
+  "PUBLIC_URL": "http://biker9td.beget.tech",
+  "MYSQL_HOST": "localhost",
+  "MYSQL_PORT": 3306,
+  "MYSQL_USER": "biker9td_ironwake",
+  "MYSQL_PASSWORD": "пароль_из_панели",
+  "MYSQL_DATABASE": "biker9td_ironwake"
+}
+```
+
+`config.local.json` не коммитить и не отдавать по HTTP (закрыт в `.htaccess`).
+
+Альтернатива — переменные `MYSQL_HOST` / `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DATABASE`.
+
+## Что было не так с заливкой в public_html
+
+Apache на Beget **не запускает** `node src/index.js`. Он просто отдаёт файлы. Поэтому:
+
+- корень сайта — **403** (не было `index.html`);
+- `package.json`, `src/db.js`, `docker-compose.yml` были скачиваемыми;
+- MySQL сама не появится, пока её не создать в панели и не импортировать схему.
+
+Нужно: схема в phpMyAdmin + `config.local.json` + запуск Node (Passenger).
+
+## Запуск Node на Beget
+
+[Инструкция Beget](https://beget.com/ru/kb/how-to/web-apps/node-js):
+
+```bash
+ssh biker9td@biker9td.beget.tech
+ssh localhost -p 222
+# поставить Node в ~/.local по статье Beget
+cd ~/biker9td.beget.tech   # или путь сайта из панели
+npm install
+```
+
+В `.htaccess` раскомментируйте блок Passenger:
+
+```
+PassengerEnabled On
+PassengerAppType node
+PassengerStartupFile src/index.js
+```
+
+Перезапуск: `mkdir -p tmp && touch tmp/restart.txt`
+
+Проверка: http://biker9td.beget.tech/health — должно быть `{"ok":true,"db":"mysql"}`.
+
+WebSocket боя: `ws://biker9td.beget.tech/ws`
+
+## Docker (не Beget)
 
 ```bash
 cp .env.example .env
@@ -20,15 +84,3 @@ docker compose up --build
 
 API: `http://localhost:8787/health`  
 WebSocket: `ws://localhost:8787/ws`
-
-## Env
-
-| Variable | Purpose |
-|---|---|
-| `MYSQL_HOST` / `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DATABASE` | Database |
-| `GOOGLE_CLIENT_ID` | Google Sign-In audience |
-| `PORT` | HTTP + WS port (default 8787) |
-
-Schema: [`sql/001_schema.sql`](sql/001_schema.sql)
-
-The browser client in the IRONWAKE web hangar talks to this process for ranked rooms. Casual P2P in the web preview is **not** cheat-safe — this server is.

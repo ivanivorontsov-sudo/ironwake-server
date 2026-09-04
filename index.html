@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>IRONWAKE server</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #0c0d0c; color: #e8e4d8; font-family: "IBM Plex Sans", "Segoe UI", sans-serif; }
+    main { max-width: 720px; margin: 10vh auto; padding: 24px; }
+    h1 { font-family: "Barlow Condensed", "Segoe UI", sans-serif; font-size: 52px; margin: 0 0 8px; letter-spacing: -0.03em; }
+    .kicker { letter-spacing: 0.28em; text-transform: uppercase; font-size: 12px; color: #9a9a8c; }
+    .card { border: 1px solid #2a2c28; background: #161814; border-radius: 12px; padding: 16px 18px; margin-top: 18px; }
+    .ok { color: #7aa06c; } .bad { color: #c07060; } .muted { color: #9a9a8c; }
+    code { background: #1e201c; padding: 2px 6px; border-radius: 4px; }
+    ol { line-height: 1.55; padding-left: 20px; }
+    a { color: #c4c8bc; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="kicker">Game server</p>
+    <h1>IRONWAKE</h1>
+    <p class="muted">Адрес боя: <code>http://biker9td.beget.tech</code></p>
+    <div class="card">
+      <p id="st" class="muted">Проверяю Node.js и MySQL…</p>
+      <p class="muted" id="hint"></p>
+    </div>
+    <div class="card">
+      <p><strong>Если сервер ещё не живой</strong> — файлы лежат в public_html, но Node.js не запущен, а база не подключена.</p>
+      <ol>
+        <li>Панель Beget → <strong>MySQL</strong> → база <code>ironwake</code> (получится <code>biker9td_ironwake</code>).</li>
+        <li>phpMyAdmin → Импорт → файл <code>sql/001_schema.sql</code>.</li>
+        <li>Скопируйте <code>config.local.json.example</code> в <code>config.local.json</code> и впишите пароль базы.</li>
+        <li>SSH: <code>npm install</code>, затем включите Passenger в <code>.htaccess</code> (см. README).</li>
+      </ol>
+    </div>
+  </main>
+  <script>
+    fetch("/health", { cache: "no-store" }).then((r) => r.json()).then((j) => {
+      const el = document.getElementById("st");
+      const hint = document.getElementById("hint");
+      if (j.ok) {
+        el.className = "ok";
+        el.textContent = "Сервер и MySQL работают.";
+        hint.textContent = "Сокет: ws://biker9td.beget.tech/ws";
+      } else {
+        el.className = "bad";
+        el.textContent = "Node.js ответил, база нет: " + (j.error || "ошибка MySQL");
+        hint.textContent = "Проверьте config.local.json и что схема импортирована.";
+      }
+    }).catch(() => {
+      document.getElementById("st").className = "bad";
+      document.getElementById("st").textContent = "Node.js не запущен — Apache отдаёт эту страницу как статику.";
+      document.getElementById("hint").textContent = "Нужен SSH + Passenger, одной заливки в public_html мало.";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+CREATE TABLE IF NOT EXISTS users (
+  id CHAR(26) PRIMARY KEY,
+  google_sub VARCHAR(64) NOT NULL UNIQUE,
+  email VARCHAR(190) NULL,
+  callsign VARCHAR(18) NOT NULL DEFAULT 'OPERATOR',
+  steel INT NOT NULL DEFAULT 25000,
+  intel INT NOT NULL DEFAULT 150,
+  commendations INT NOT NULL DEFAULT 0,
+  xp INT NOT NULL DEFAULT 0,
+  selected_vehicle VARCHAR(40) NOT NULL DEFAULT 'k72-ural',
+  battles INT NOT NULL DEFAULT 0,
+  victories INT NOT NULL DEFAULT 0,
+  kills INT NOT NULL DEFAULT 0,
+  deaths INT NOT NULL DEFAULT 0,
+  classes_played VARCHAR(120) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS owned_vehicles (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id CHAR(26) NOT NULL,
+  vehicle_id VARCHAR(40) NOT NULL,
+  acquired_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_user_vehicle (user_id, vehicle_id),
+  KEY idx_owned_user (user_id),
+  CONSTRAINT fk_owned_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS player_achievements (
+  user_id CHAR(26) NOT NULL,
+  achievement_id VARCHAR(40) NOT NULL,
+  unlocked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, achievement_id),
+  CONSTRAINT fk_ach_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS match_history (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id CHAR(26) NOT NULL,
+  result ENUM('victory','defeat') NOT NULL,
+  reason VARCHAR(80) NOT NULL DEFAULT '',
+  vehicle_id VARCHAR(40) NOT NULL,
+  kills INT NOT NULL DEFAULT 0,
+  damage INT NOT NULL DEFAULT 0,
+  duration_sec INT NOT NULL DEFAULT 0,
+  steel_earned INT NOT NULL DEFAULT 0,
+  intel_earned INT NOT NULL DEFAULT 0,
+  xp_earned INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_match_user (user_id, created_at),
+  CONSTRAINT fk_match_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS rooms (
+  id VARCHAR(16) PRIMARY KEY,
+  mode ENUM('laststand','assault') NOT NULL DEFAULT 'laststand',
+  status ENUM('lobby','live','ended') NOT NULL DEFAULT 'lobby',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -12,7 +12,10 @@ Options -Indexes
   Require all denied
 </Files>
 
-# Beget Node (Passenger). Keep enabled so deploys don't kill /health.
+# Beget Node.js (Passenger). Paths are account-specific — verify after copy.
 PassengerEnabled On
 PassengerAppType node
 PassengerStartupFile passenger.cjs
+PassengerFriendlyErrorPages off
+PassengerNodejs /home/b/biker9td/biker9td.beget.tech/nodejs/bin/node
+PassengerAppRoot /home/b/biker9td/biker9td.beget.tech/public_html

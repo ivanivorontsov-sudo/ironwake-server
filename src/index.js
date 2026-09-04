@@ -279,6 +279,13 @@ function readJson(req) {
 waitForDb().then((dbOk) => {
   console.log(`IRONWAKE db=${dbOk ? "up" : "down"}`);
 });
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`IRONWAKE server ${cfg.publicUrl} :${PORT}`);
-});
+const passenger = typeof PhusionPassenger !== "undefined" || process.env.IRONWAKE_PASSENGER === "1";
+if (passenger) {
+  server.listen("passenger", () => {
+    console.log(`IRONWAKE server ${cfg.publicUrl} (Passenger)`);
+  });
+} else {
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`IRONWAKE server ${cfg.publicUrl} :${PORT}`);
+  });
+}

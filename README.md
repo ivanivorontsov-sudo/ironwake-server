@@ -111,3 +111,13 @@ node scripts/combat-smoke.mjs
 node scripts/combat-smoke.mjs
 ```
 
+
+## Beget Passenger (важно)
+
+В `.htaccess` должны быть пути этого аккаунта:
+
+- `PassengerNodejs /home/b/biker9td/biker9td.beget.tech/nodejs/bin/node`
+- `PassengerAppRoot /home/b/biker9td/biker9td.beget.tech/public_html`
+- `PassengerStartupFile passenger.cjs`
+
+Без `PassengerNodejs` приложение может падать с 500. После деплоя: `touch tmp/restart.txt`, проверка `/health`.

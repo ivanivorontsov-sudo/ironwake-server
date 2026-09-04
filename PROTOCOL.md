@@ -72,6 +72,7 @@ Legacy position sync (`x`,`y`,`z`,`yaw` as teleport) is **not** trusted for comb
 | `x,y,z,yaw,turretYaw,gunPitch` | Pose |
 | `hp`, `maxHp`, `alive`, `spectator` | Vitality (no respawn; dead → spectator) |
 | `modules` | `hull_f/s/r`, `turret`, `gun`, `engine`, `ammo`, `track_l/r`, `fuel`, `optics` ∈ [0,1] |
+| `bot` | `true` for AI fillers (`BOT-*` callsigns); omit/false for humans |
 | `onFire`, `fuel`, `ammo`, `immobilized`, `canFire`, `opticsBroken` | Status |
 
 ## Events

@@ -15,6 +15,7 @@ import {
   moduleSnapshot,
 } from "./combat.js";
 import { getVehicle, freshModules } from "./vehicles.js";
+import { ensureBots, botThink, botsEnabled } from "./bots.js";
 
 const STEP_MS = 50; // 20 Hz
 const DT = STEP_MS / 1000;
@@ -83,6 +84,7 @@ export class Room {
       input: { throttle: 0, steer: 0, aimYaw: null, aimPitch: null, fire: false, brake: false },
       stats: { kills: 0, damage: 0, shots: 0, hits: 0 },
       _lastAttacker: null,
+      bot: Boolean(profile.bot),
     };
     this.players.set(id, p);
     this.pushEvent("join", {
@@ -139,6 +141,13 @@ export class Room {
     if (this.ended) return;
     this.tick++;
     const events = [];
+
+    if (botsEnabled()) {
+      ensureBots(this);
+      for (const p of this.players.values()) {
+        if (p.bot) botThink(p, this);
+      }
+    }
 
     for (const p of this.players.values()) {
       if (!p.alive) continue;
@@ -360,6 +369,7 @@ export class Room {
         ammo: p.ammo,
         modules: moduleSnapshot(p.modules),
         callsign: p.callsign,
+        bot: Boolean(p.bot),
         immobilized: p.immobilized,
         canFire: p.canFire,
         opticsBroken: p.opticsBroken,
@@ -373,6 +383,7 @@ export class Room {
     const duration = Math.round((Date.now() - this.startedAt) / 1000);
     const reports = [];
     for (const p of this.players.values()) {
+      if (p.bot) continue;
       const victory = this.winner && p.team === this.winner;
       reports.push({
         userId: p.id,

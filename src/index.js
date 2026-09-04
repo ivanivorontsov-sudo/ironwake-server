@@ -281,13 +281,35 @@ function readJson(req) {
 waitForDb().then((dbOk) => {
   console.log(`IRONWAKE db=${dbOk ? "up" : "down"}`);
 });
-const passenger = typeof PhusionPassenger !== "undefined" || process.env.IRONWAKE_PASSENGER === "1";
-if (passenger) {
-  server.listen("passenger", () => {
-    console.log(`IRONWAKE server ${cfg.publicUrl} (Passenger)`);
-  });
-} else {
+function underPassenger() {
+  return (
+    process.env.IRONWAKE_PASSENGER === "1" ||
+    typeof globalThis.PhusionPassenger !== "undefined" ||
+    Boolean(process.env.PASSENGER_APP_ENV) ||
+    Boolean(process.env.PASSENGER_DOWNLOAD_NATIVE_SUPPORT_BINARY)
+  );
+}
+
+function listenHttp() {
+  if (underPassenger()) {
+    server.listen("passenger", () => {
+      console.log(`IRONWAKE server ${cfg.publicUrl} (Passenger)`);
+    });
+    return;
+  }
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`IRONWAKE server ${cfg.publicUrl} :${PORT}`);
+  }).on("error", (err) => {
+    if (err && (err.code === "EPERM" || err.code === "EADDRINUSE")) {
+      console.warn("port bind failed, falling back to Passenger socket", err.code);
+      process.env.IRONWAKE_PASSENGER = "1";
+      server.listen("passenger", () => {
+        console.log(`IRONWAKE server ${cfg.publicUrl} (Passenger fallback)`);
+      });
+      return;
+    }
+    throw err;
   });
 }
+
+listenHttp();
